@@ -1,7 +1,8 @@
-# led_push_button
+# led push button
 
+Made for those push buttons with an led light ring or symbol. Button actions and led state can be set using MQTT
 
-MQTT button, supporting:  
+supporting:  
 - OTA
 - Click patterns:
   * Click --> On
