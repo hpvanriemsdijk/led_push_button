@@ -43,13 +43,13 @@ String media_state = "OFF";
  *  WiFi
  *  credentials.h has to be in your libary folder. its content is:
  *  #define mySSID "yourSSID"
- *  #define myMqttServer "yourPassword"
- *  #define myMqttUID "yourPassword"
- *  #define myMqttPass "yourPassword"
- *  #define myMqttTopic "yourPassword"
+ *  #define myMqttServer "your MQTT server IP"
+ *  #define myMqttUID "Your MQTT user name "
+ *  #define myMqttPass "your MQTT Password"
+ *  #define myMqttTopic "Base topic"
  *  If you do not want this file, hard-code your credentials in this sketch
  */
-#include <credentials.h>
+#include "credentials.h";
 const char* ssid = mySSID;
 const char* password = myPASSWORD;
 WiFiClient espClient;
