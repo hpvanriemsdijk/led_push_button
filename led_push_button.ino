@@ -240,8 +240,8 @@ void button_action() {
       Serial.print(", media_state: "); 
       Serial.println(media_state);
 
-      client.publish((stat_prefix+mqtt_base_topic+power_topic).c_str(), (power_state).c_str(), true);
-      client.publish((stat_prefix+mqtt_base_topic+media_topic).c_str(), (media_state).c_str(), true);
+      client.publish((stat_prefix+mqtt_base_topic+power_topic).c_str(), (power_state).c_str(), false);
+      client.publish((stat_prefix+mqtt_base_topic+media_topic).c_str(), (media_state).c_str(), false);
       
       holdState = 0;
       buttonReleased = false;
