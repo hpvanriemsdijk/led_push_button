@@ -65,7 +65,8 @@ const String cmnd_prefix = "cmnd/";
 const String tele_prefix = "tele/";
 const String power_topic = "/POWER";
 const String media_topic = "/MEDIA"; 
-const String available_topic = "/LTW";
+const String state_topic = "/STATE"; 
+const String available_topic = "/LWT";
 String clientId = "ESP8266Client-";
 
 //Button
@@ -134,7 +135,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
       media_state = "OFF";
       Serial.println("OFF");
     }
-    client.publish((stat_prefix+mqtt_base_topic+power_topic).c_str(), (power_state).c_str(), true);
+    client.publish((stat_prefix+mqtt_base_topic+power_topic).c_str(), (power_state).c_str(), false);
   }
 
   //Compair MEDIA topic
@@ -147,7 +148,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
       media_state = "OFF";
       Serial.println("OFF");
     }
-    client.publish((stat_prefix+mqtt_base_topic+media_topic).c_str(), (media_topic).c_str(), true);
+    client.publish((stat_prefix+mqtt_base_topic+media_topic).c_str(), (media_topic).c_str(), false);
   }
 }
 
@@ -171,8 +172,8 @@ void reconnect() {
       Serial.println("subscribed to " + cmnd_prefix+mqtt_base_topic+"/#" );
       
       client.publish((tele_prefix+mqtt_base_topic+available_topic).c_str(), "Online", true);
-      client.publish((stat_prefix+mqtt_base_topic+power_topic).c_str(), (power_state).c_str(), true);
-      client.publish((stat_prefix+mqtt_base_topic+media_topic).c_str(), (media_state).c_str(), true);
+      client.publish((stat_prefix+mqtt_base_topic+power_topic).c_str(), (power_state).c_str(), false);
+      client.publish((stat_prefix+mqtt_base_topic+media_topic).c_str(), (media_state).c_str(), false);
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -376,7 +377,7 @@ void send_tele(){
     Serial.print("Publish message: ");
     Serial.println(tele_payload);
     
-    client.publish((tele_prefix+mqtt_base_topic).c_str(), (tele_payload).c_str());
+    client.publish((tele_prefix+mqtt_base_topic+state_topic).c_str(), (tele_payload).c_str());
   }    
 }
 
