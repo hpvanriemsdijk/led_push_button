@@ -105,6 +105,7 @@ void setup_wifi() {
   }
 
   randomSeed(micros());
+  ArduinoOTA.setHostname("OTA Push-button 1");
 
   Serial.println("");
   Serial.println("WiFi connected");
