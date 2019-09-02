@@ -1,9 +1,7 @@
 /*
  * MQTT button, supporting:  
  *  OTA
- *  Click --> On
- *  Dubble Click --> Media On
- *  Hold --> Off
+ *  Click, Dubble Click and Hold
  *  Long hold -- Ignore press
  *
  * A nice led that acts as a status indicator:
@@ -11,12 +9,11 @@
  *  Dim lid --> Off
  *  Breath --> On
  *  Bright on --> Pressed
- *  Blinking --> send oof dignal when released
+ *  Blinking --> In press hold zone.
  *  
- * Lisning to media_topic and power_toppic 
- *  
- * Sending tele message every 5 minutes:
- *  
+ * Lisning to led_topic to set led state to ON or OFF
+ * sending last button action as tele message
+ *    
  * Known issue with:  
  *  - Using serial debuger over USB (Sends lkast will over OTA) and WiFi (Asks non-excisting password)
  *  
@@ -36,8 +33,7 @@ const int BUTTON_LED_PIN = D5;
 //States
 String lastCommand = "null";
 int holdState = 0;
-String power_state = "OFF";
-String media_state = "OFF";
+String led_state = "OFF";
 
 /* 
  *  WiFi
@@ -63,11 +59,10 @@ const String mqtt_base_topic = myMqttTopic;
 const String stat_prefix = "stat/";
 const String cmnd_prefix = "cmnd/";
 const String tele_prefix = "tele/";
-const String power_topic = "/POWER";
-const String media_topic = "/MEDIA"; 
-const String state_topic = "/STATE"; 
+const String led_topic = "/LED"; 
+const String button_topic = "/BTN"; 
 const String available_topic = "/LWT";
-String clientId = "ESP8266Client-";
+String clientId = "Push-button-";
 
 //Button
 Button button(BUTTON_PIN);
@@ -91,7 +86,7 @@ String formattedDate;
 
 void setup_wifi() {
   delay(10);
-  // We start by connecting to a WiFi network
+
   Serial.println();
   Serial.print("Connecting to ");
   Serial.println(ssid);
@@ -115,7 +110,6 @@ void setup_wifi() {
 
 void callback(char* topic, byte* payload, unsigned int length) {
   String stringPayload;
-  String fullPowerTopic = cmnd_prefix + mqtt_base_topic + power_topic;
 
   //Echo received msg
   Serial.print("Message arrived [");
@@ -127,59 +121,39 @@ void callback(char* topic, byte* payload, unsigned int length) {
   }
   Serial.println();
 
-  //Compair POWER topic
-  if (strcmp(topic, (cmnd_prefix + mqtt_base_topic + power_topic).c_str() )==0) {
+  //Handle state topic
+  if (strcmp(topic, (cmnd_prefix + mqtt_base_topic + led_topic).c_str() )==0) {
     if( stringPayload == "ON" ){
-      power_state = "ON";
+      led_state = "ON";
       Serial.println("ON");
     }else if( stringPayload == "OFF" ){
-      power_state = "OFF";
-      media_state = "OFF";
+      led_state = "OFF";
       Serial.println("OFF");
     }
-    client.publish((stat_prefix+mqtt_base_topic+power_topic).c_str(), (power_state).c_str(), false);
-  }
 
-  //Compair MEDIA topic
-  if (strcmp(topic, (cmnd_prefix + mqtt_base_topic + media_topic).c_str() )==0) {
-    if( stringPayload == "ON" ){
-      power_state = "ON";
-      media_state = "ON";
-      Serial.println("ON");
-    }else if( stringPayload == "OFF" ){
-      media_state = "OFF";
-      Serial.println("OFF");
-    }
-    client.publish((stat_prefix+mqtt_base_topic+media_topic).c_str(), (media_topic).c_str(), false);
+    client.publish((stat_prefix+mqtt_base_topic+led_topic).c_str(), (led_state).c_str(), false);
   }
 }
 
 void reconnect() {
   // Loop until we're reconnected
-  while (!client.connected()) {
+  while (!client.connected()) { 
     Serial.print("Attempting MQTT connection...");
     clientId += String(random(0xffff), HEX);
     
     // Attempt to connect
-    if (client.connect(
-          clientId.c_str(), 
-          mqtt_uid, 
-          mqtt_pass,
-          (tele_prefix+mqtt_base_topic+available_topic).c_str(),
-          0,
-          true,
-          "Offline")) {
+    if (client.connect(clientId.c_str(), mqtt_uid, mqtt_pass, (tele_prefix+mqtt_base_topic+available_topic).c_str(), 0, true, "Offline")) {
       Serial.println("Connected with id: " + clientId );
-      client.subscribe((cmnd_prefix+mqtt_base_topic+"/#").c_str());
-      Serial.println("subscribed to " + cmnd_prefix+mqtt_base_topic+"/#" );
+      client.subscribe((cmnd_prefix + mqtt_base_topic + led_topic).c_str());
+      Serial.println("subscribed to " + cmnd_prefix + mqtt_base_topic + led_topic);
       
       client.publish((tele_prefix+mqtt_base_topic+available_topic).c_str(), "Online", true);
-      client.publish((stat_prefix+mqtt_base_topic+power_topic).c_str(), (power_state).c_str(), false);
-      client.publish((stat_prefix+mqtt_base_topic+media_topic).c_str(), (media_state).c_str(), false);
+      client.publish((stat_prefix+mqtt_base_topic+led_topic).c_str(), (led_state).c_str(), false);
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
       Serial.println(" try again in 5 seconds");
+
       // Wait 5 seconds before retrying
       delay(5000);
     }
@@ -218,32 +192,25 @@ void button_action() {
       if( holdState == 0 ){
         //On
         Serial.print("Click: ON, ");
-        lastCommand = "SHORTCLICK";
-        power_state = "ON";  
-        media_state = "OFF";         
+        lastCommand = "SHORTCLICK";    
       }else if ( holdState == 1 ){
         //Media on
         Serial.print("Dubble click: Media ON, ");
         lastCommand = "DUBBLECLICK";
-        power_state = "ON";  
-        media_state = "ON";   
       }else if ( holdState == 2 ){
         //Off 
         Serial.print("Hold: Off, ");
         lastCommand = "HOLD";
-        power_state = "OFF";  
-        media_state = "OFF";   
       }else if ( holdState == 3 ){
         //Cancel click
         Serial.print("Hold long: cancel, "); 
+      }else{
+        lastCommand = "NOTHING";
       }
-      Serial.print("power_state: "); 
-      Serial.print(power_state);
-      Serial.print(", media_state: "); 
-      Serial.println(media_state);
 
-      client.publish((stat_prefix+mqtt_base_topic+power_topic).c_str(), (power_state).c_str(), false);
-      client.publish((stat_prefix+mqtt_base_topic+media_topic).c_str(), (media_state).c_str(), false);
+      if(lastCommand != "NOTHING" ){
+         client.publish((tele_prefix+mqtt_base_topic+button_topic).c_str(), (lastCommand).c_str(), false);
+      }      
       
       holdState = 0;
       buttonReleased = false;
@@ -263,8 +230,8 @@ void set_led(){
       analogWrite(BUTTON_LED_PIN, 255); //bright on 
     }
   }else{
-    if( power_state == "ON"){
-      breath(); //breath, todo
+    if( led_state == "ON"){
+      breath(); //breath
     }else{
       analogWrite(BUTTON_LED_PIN, 20); //dim on
     }  
@@ -358,31 +325,6 @@ void setup() {
   button.begin();
 }
 
-void send_tele(){
-  long now = millis();
-  long send_every = 5 * 60 * 1000; // 5 minutes in millie
-  static long lastMsg = 0;
-  String tele_payload = "";
-
-  if (now - lastMsg > send_every ) {
-    lastMsg = now;
-    timeClient.update();
-
-    tele_payload = "{\"Time\": \"";
-    tele_payload += timeClient.getFormattedDate();
-    tele_payload += "\", \"POWER\": \"";
-    tele_payload += power_state;
-    tele_payload += "\", \"MEDIA\": \"";
-    tele_payload += media_state;
-    tele_payload += "\"}";
-
-    Serial.print("Publish message: ");
-    Serial.println(tele_payload);
-    
-    client.publish((tele_prefix+mqtt_base_topic+state_topic).c_str(), (tele_payload).c_str());
-  }    
-}
-
 void loop() {
   //OTA
   ArduinoOTA.handle();
@@ -392,12 +334,10 @@ void loop() {
     analogWrite(BUTTON_LED_PIN, 0);
     reconnect();
   }
+
   client.loop();
   
   //Button & led actions  
   button_action();
   set_led();    
-  
-  //Send Telemetry message
-  send_tele();  
 }
